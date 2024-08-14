@@ -16,6 +16,7 @@ class StatusEnum(enum.Enum):
 
 
 class LevelEnum(enum.Enum):
+    z1 = 'Определяется'
     oneA = '1A'
     oneB = '1B'
     twoA = '2A'
@@ -48,7 +49,7 @@ class User(db.Model):
                      nullable=False,
                      default='tourist')
     atype = db.Column(Enum(ActivitiesTypes))
-    passes = db.relationship('Passes', backref='author', lazy=True)
+    passes = db.relationship('Passes', backref='users', lazy=True)
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -62,18 +63,18 @@ class Passes(db.Model):
     title = db.Column(db.String(100))
     other_titles = db.Column(db.String(200))
     connect = db.Column(ARRAY(db.Integer), nullable=True)
-    add_time = db.Column(DateTime, default=datetime.utcnow, nullable=False)
-    level_winter = db.Column(Enum(LevelEnum))
-    level_spring = db.Column(Enum(LevelEnum))
-    level_summer = db.Column(Enum(LevelEnum))
-    level_autumn = db.Column(Enum(LevelEnum))
+    add_time = db.Column(DateTime, default=datetime.now, nullable=False)
+    level_winter = db.Column(Enum(LevelEnum), nullable=True)
+    level_spring = db.Column(Enum(LevelEnum), nullable=True)
+    level_summer = db.Column(Enum(LevelEnum), nullable=True)
+    level_autumn = db.Column(Enum(LevelEnum), nullable=True)
     status = db.Column(Enum(StatusEnum),
                        nullable=False,
-                       default='new')
+                       default='NEW')
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     coords_id = db.Column(db.Integer, db.ForeignKey('coords.id'), nullable=False)
-    images = db.relationship('images', backref='img', lazy=True)
+    images = db.relationship('Images', backref='img', lazy=True)
 
 
 class Coords(db.Model):
@@ -84,10 +85,22 @@ class Coords(db.Model):
     longitude = db.Column(DECIMAL(9, 6), nullable=False)
     height = db.Column(db.Integer)
 
-    passes = db.relationship('Passes', backref='locations', lazy=True)
+    passes = db.relationship('Passes', backref='coords', lazy=True)
+
 
 class Images(db.Model):
     __tablename__ = 'images'
 
     id = db.Column(db.Integer, primary_key=True)
     pass_id = db.Column(db.Integer, db.ForeignKey('passes.id'), nullable=False)
+
+    @classmethod
+    def create_img(cls, pass_id):
+        new_img = cls(pass_id=pass_id)
+        print(new_img)
+        db.session.add(new_img)
+        db.session.commit()
+        return {
+            'id': new_img.id,
+            'pass_id': new_img.pass_id
+        }

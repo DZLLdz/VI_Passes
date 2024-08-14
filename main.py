@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 from models import db
+from flask_migrate import Migrate
 from routes import main
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 
 app = Flask(__name__)
+migrate = Migrate(app, db)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{os.getenv('FSTR_DB_LOGIN')}:{os.getenv('FSTR_DB_PASS')}@{os.getenv('FSTR_DB_HOST')}:{os.getenv('FSTR_DB_PORT')}/{os.getenv('FSTR_DB_NAME')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
