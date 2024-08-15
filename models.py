@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, DECIMAL, DateTime
 from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 
 db = SQLAlchemy()
+
 
 class StatusEnum(enum.Enum):
     NEW = 'New'
@@ -39,7 +40,7 @@ class ActivitiesTypes(enum.Enum):
     t11 = 'верхом'
 
 
-class User(db.Model):
+class Users(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -106,7 +107,17 @@ class Images(db.Model):
         }
 
 
+class UserSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Users
+        load_instance = True
+
+
 class PassesSchema(SQLAlchemyAutoSchema):
+    users = fields.Nested(UserSchema)
+
     class Meta:
         model = Passes
+        include_relationships = False   # включаем поля со связями
         load_instance = True
+

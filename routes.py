@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, jsonify, request
-from models import db, User, Passes, Images, Coords, LevelEnum, PassesSchema
+from models import db, Users, Passes, Images, Coords, LevelEnum, PassesSchema, UserSchema
 import requests
 
 main = Blueprint('main', __name__)
 passes_schema = PassesSchema(many=True)
 pass_schema = PassesSchema()
+
 
 
 @main.route('/api/hello', methods=['GET'])
@@ -19,7 +20,7 @@ def index():
 
 @main.route('/users')
 def list_users():
-    users = User.query.all()
+    users = Users.query.all()
     return render_template('users.html', users=users)
 
 
@@ -108,12 +109,34 @@ def submit_data():
         return jsonify({'error': str(e)}), 500
 
 
+
+@main.route('/user/<int:id>', methods=['GET'])
+def get_user(id):
+    user = Users.query.get(id)
+    if user:
+        user_schema = UserSchema()
+        return jsonify(user_schema.dump(user)), 200
+    else:
+        return jsonify({'error': 'User not found'}), 404
+
+
+@main.route('/user/all', methods=['GET'])
+def get_all_user():
+    users = Users.query.all()
+    if users:
+        users_schema = UserSchema(many=True)
+        return jsonify(users_schema.dump(users)), 200
+    else:
+        return jsonify({'error': 'User not found'}), 404
+
+
 @main.route('/submitData/<int:id>', methods=['GET'])
 def get_passes_data(id):
     try:
         passes = Passes.query.get(id)
         if passes is not None:
-            return jsonify(pass_schema.dump(passes))
+            return jsonify({'message': 'Data submitted successfully',
+                            'data': pass_schema.dump(passes)})
         else:
             return jsonify({'message': f"Object with ID:{id} not founded!"})
 
