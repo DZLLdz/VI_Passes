@@ -4,9 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, DECIMAL, DateTime
 from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 db = SQLAlchemy()
-
 
 class StatusEnum(enum.Enum):
     NEW = 'New'
@@ -104,3 +104,9 @@ class Images(db.Model):
             'id': new_img.id,
             'pass_id': new_img.pass_id
         }
+
+
+class PassesSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Passes
+        load_instance = True

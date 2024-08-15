@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, jsonify, request
-from models import db, User, Passes, Images, Coords, LevelEnum
+from models import db, User, Passes, Images, Coords, LevelEnum, PassesSchema
 import requests
 
 main = Blueprint('main', __name__)
+passes_schema = PassesSchema(many=True)
+pass_schema = PassesSchema()
 
 
 @main.route('/api/hello', methods=['GET'])
@@ -103,4 +105,30 @@ def submit_data():
 
     except Exception as e:
         # Обработка ошибок
+        return jsonify({'error': str(e)}), 500
+
+
+@main.route('/submitData/<int:id>', methods=['GET'])
+def get_passes_data(id):
+    try:
+        passes = Passes.query.get(id)
+        if passes is not None:
+            return jsonify(pass_schema.dump(passes))
+        else:
+            return jsonify({'message': f"Object with ID:{id} not founded!"})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@main.route('/submitData/all', methods=['GET'])
+def get_all_passes_data():
+    try:
+        passes = Passes.query.all()
+        if passes is not None:
+            return jsonify(passes_schema.dump(passes))
+        else:
+            return jsonify({'message': f"Data is clear!"})
+
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
