@@ -3,9 +3,9 @@ from models import db, Users, Passes, Images, Coords, LevelEnum, PassesSchema, U
 import requests
 
 main = Blueprint('main', __name__)
+
 passes_schema = PassesSchema(many=True)
 pass_schema = PassesSchema()
-
 
 
 @main.route('/api/hello', methods=['GET'])
@@ -109,7 +109,6 @@ def submit_data():
         return jsonify({'error': str(e)}), 500
 
 
-
 @main.route('/user/<int:id>', methods=['GET'])
 def get_user(id):
     user = Users.query.get(id)
@@ -117,7 +116,7 @@ def get_user(id):
         user_schema = UserSchema()
         return jsonify(user_schema.dump(user)), 200
     else:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'erorr': 'User not found'}), 404
 
 
 @main.route('/user/all', methods=['GET'])
@@ -133,7 +132,7 @@ def get_all_user():
 @main.route('/submitData/<int:id>', methods=['GET'])
 def get_passes_data(id):
     try:
-        passes = Passes.query.get(id)
+        passes = db.session.get(Passes, id)
         if passes is not None:
             return jsonify({'message': 'Data submitted successfully',
                             'data': pass_schema.dump(passes)})
@@ -155,3 +154,53 @@ def get_all_passes_data():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@main.route('/submitData/<int:id>', methods=['PATCH'])
+def update_data(id):
+    session = db.session
+    data_get = session.get(Passes, id)
+    pass_schema = PassesSchema()
+    data_entry = pass_schema.dump(data_get)
+    status = data_entry.get('status')
+    print(status)
+
+    if not data_entry:
+        return jsonify({'state': 0, 'error': 'Entry not found'}), 404
+
+    if status != 'NEW':
+        return jsonify({'state': 0, 'error': 'Only entries with status "NEW" can be edited'}), 400
+
+    new_data = request.json
+
+    if not new_data:
+        return jsonify({'state': 0, 'erorr': 'No data provided'}), 400
+
+    try:
+        data_to_update = new_data.get('data')
+        level_to_update = data_to_update.get('level')
+        fields_in_new = ["beautyTitle", "connect", "other_titles", "title", 'level']
+        level_in_update = ["autumn", "spring", "summer", "winter"]
+        # fields_to_update = ["beautyTitle", "connect", "other_titles", "title",
+        #                     "level_autumn", "level_spring", "level_summer", "level_winter",]
+        valid_levels = {'z1', 'oneA', 'oneB', 'twoA', 'twoB', 'threeA', 'threeB'}
+        for field in fields_in_new:
+            if field != 'level':
+                setattr(data_get, field, data_to_update[field])
+            else:
+                for level in level_in_update:
+                    change_attribute = f'level_{level}'
+                    if new_data['data']['level'][f'{level}'] in valid_levels:
+                        setattr(data_get, change_attribute, level_to_update[level])
+                    else:
+                        setattr(data_get, change_attribute, 'z1')
+
+    except Exception as e:
+        return jsonify({'state': 0, 'message': e }), 500
+
+    try:
+        db.session.commit()
+        return jsonify({'state': 1, 'message': 'Data updated successfully', 'id': id}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'state': 0, 'message': e }), 500

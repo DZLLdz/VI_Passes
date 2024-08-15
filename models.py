@@ -118,6 +118,6 @@ class PassesSchema(SQLAlchemyAutoSchema):
 
     class Meta:
         model = Passes
-        include_relationships = False   # включаем поля со связями
+        include_relationships = False
         load_instance = True
 

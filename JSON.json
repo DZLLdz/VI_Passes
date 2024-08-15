@@ -1,16 +1,16 @@
 {
     "data": {
-        "user_id": "*",
-        "coord_id": "*",
+        "user_id": "2",
+        "coord_id": "1",
         "images": [],
-        "beautyTitle": "пер.",
+        "beautyTitle": "ASD",
         "title": "Title1",
         "other_titles": "Title2",
         "connect": [],
         "level": {
-            "winter": "3A",
+            "winter": "oneA",
             "spring": "",
-            "summer": "2A",
+            "summer": "",
             "autumn": ""
         }
     }
