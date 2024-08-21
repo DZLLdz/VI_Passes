@@ -163,7 +163,6 @@ def update_data(id):
     pass_schema = PassesSchema()
     data_entry = pass_schema.dump(data_get)
     status = data_entry.get('status')
-    print(status)
 
     if not data_entry:
         return jsonify({'state': 0, 'error': 'Entry not found'}), 404
@@ -204,3 +203,21 @@ def update_data(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'state': 0, 'message': e }), 500
+
+
+@main.route('/submitData/', methods=['GET'])
+def get_user_data_by_email():
+    email = request.args.get('user__email')
+    print(f'New get_user_data_by_email {email}')
+    if not email:
+        return jsonify({'state': 0, 'message': 'Email parameter is missing'}), 400
+
+    user = Users.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'state': 0, 'message': 'User not found'}), 404
+
+    passes_entries = Passes.query.filter_by(users_id=user.id).all()
+    # passes_schema = PassesSchema(many=True)
+    passes_json = passes_schema.dump(passes_entries)
+
+    return jsonify({'state': 1, 'data': passes_json})
