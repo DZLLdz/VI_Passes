@@ -1,223 +1,238 @@
-from flask import Blueprint, render_template, jsonify, request
-from models import db, Users, Passes, Images, Coords, LevelEnum, PassesSchema, UserSchema
 import requests
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+from flask import jsonify, request
+from flask_restx import Namespace, Resource
+from models import db, Users, Passes, Images, Coords, LevelEnum
+from schems import PassesSchema, UserSchema
+from swagger_models import user_model, passes_model_old, passes_model, new_pass_response_model, coords_model, images_model
 
-main = Blueprint('main', __name__)
-
-passes_schema = PassesSchema(many=True)
-pass_schema = PassesSchema()
-
-
-@main.route('/api/hello', methods=['GET'])
-def hello():
-    return jsonify({"message": "Hello, World!"})
-
-
-@main.route('/')
-def index():
-    return "Hello, World!"
+api = Namespace('Routes', description="Возможные маршруты")
 
 
-@main.route('/users')
-def list_users():
-    users = Users.query.all()
-    return render_template('users.html', users=users)
+@api.route('/hello')
+class HelloWorld(Resource):
+    def get(self):
+        return jsonify({"message": "Hello, World!"})
 
 
-@main.route('/sendData')
-def send_data():
-    url = 'http://127.0.0.1:5000/submitData'
-    # image1 = Images.create_img()
-    # image2 = Images.create_img()
+@api.route('/users/<int:id>')
+class UserResource(Resource):
+    @api.doc(description="Get jSON User on ID")
+    @api.response(200, 'Success', user_model)
+    @api.response(404, 'User not found', user_model)
+    @api.response(500, 'Server Error')
+    def get(self, id):
+        try:
+            if id == 0:
+                users = Users.query.all()
+                if users:
+                    users_schema = UserSchema(many=True)
+                    result = users_schema.dump(users)
+                    return result, 200
+            elif id > 0:
+                user = Users.query.get(id)
+                if user:
+                    user_schema = UserSchema()
+                    result = user_schema.dump(user)
+                    return result, 200
+            else:
+                return {'erorr': 'User not found'}, 404
 
-    data = {
-        "data": {
-            "users_id": "2",
-            "coords_id": "1",
-            "images": [],
-            "beautyTitle": "пер.",
-            "title": "Title1",
-            "other_titles": "Title2",
-            "connect": [],
-            "level": {
-                "winter": "threeA",
-                "spring": "oneB",
-                "summer": "twoA",
-                "autumn": "z1"
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+
+@api.route('/sendData')
+class SendData(Resource):
+    @api.doc(description="Отправляет в старой форме на сервере", )
+    @api.response(200, 'Success', passes_model_old)
+    @api.response(400, 'Bad Request')
+    def get(self):
+        url = 'http://127.0.0.1:5000/api/sendData'
+        data = {
+            "data": {
+                "users_id": "1",
+                "coords_id": "1",
+                "images": [],
+                "beautyTitle": "пер.",
+                "title": "Title1",
+                "other_titles": "Title2",
+                "connect": [],
+                "level": {
+                    "winter": "threeA",
+                    "spring": "oneB",
+                    "summer": "twoA",
+                    "autumn": "z1"
+                }
             }
         }
-    }
-    response = requests.post(url, json=data)
-    return response.json(), response.status_code
-
-
-@main.route('/submitData', methods=['POST'])
-def submit_data():
-    try:
-        # Получение данных из запроса
-        data_value = request.json.get('data')
-        # Проверка на наличие данных
-        if not data_value:
-            return jsonify({'error': 'No data provided'}), 400
+        response = requests.post(url, json=data, headers={'Content-Type': 'application/json'})
+        if response.status_code == 200:
+            try:
+                return response.json()
+            except ValueError:
+                return {"error": "Invalid JSON received"}, 500
         else:
-            print(f"Data Recived")
-        # Преобразование данных
-        user_id = data_value.get('users_id')
+            return {"error": f"Request failed with status code {response.status_code}"}, 400
 
-        coord_id = data_value.get('coords_id')
-
-        # images = data_value.get('images')
-
-        beauty_title = data_value.get('beautyTitle')
-        title = data_value.get('title')
-        other_titles = data_value.get('other_titles')
-        connect = data_value.get('connect')
-        level_values = data_value.get('level')
-        level_winter = level_values.get('winter')
-        if level_winter == "" or level_winter is None:
-            level_winter = LevelEnum.z1
-        level_spring = level_values.get('spring')
-        if level_spring == "" or level_spring is None:
-            level_spring = LevelEnum.z1
-        level_summer = level_values.get('summer')
-        if level_summer == "" or level_summer is None:
-            level_summer = LevelEnum.z1
-        level_autumn = level_values.get('autumn')
-        if level_autumn == "" or level_autumn is None:
-            level_autumn = LevelEnum.z1
-        # Создание нового объекта Passes
-        new_passes = Passes(users_id=user_id,
-                            coords_id=coord_id,
-                            beautyTitle=beauty_title,
-                            title=title,
-                            other_titles=other_titles,
-                            connect=connect,
-                            level_winter=level_winter,
-                            level_spring=level_spring,
-                            level_summer=level_summer,
-                            level_autumn=level_autumn)
-        # Добавление в сессию и сохранение в базе данных
-        db.session.add(new_passes)
-        # db.session.flush()
-
-        db.session.commit()
-
-        return jsonify({'message': 'Data submitted successfully', 'data_id': new_passes.id}), 201
-
-    except Exception as e:
-        # Обработка ошибок
-        return jsonify({'error': str(e)}), 500
-
-
-@main.route('/user/<int:id>', methods=['GET'])
-def get_user(id):
-    user = Users.query.get(id)
-    if user:
-        user_schema = UserSchema()
-        return jsonify(user_schema.dump(user)), 200
-    else:
-        return jsonify({'erorr': 'User not found'}), 404
-
-
-@main.route('/user/all', methods=['GET'])
-def get_all_user():
-    users = Users.query.all()
-    if users:
-        users_schema = UserSchema(many=True)
-        return jsonify(users_schema.dump(users)), 200
-    else:
-        return jsonify({'error': 'User not found'}), 404
-
-
-@main.route('/submitData/<int:id>', methods=['GET'])
-def get_passes_data(id):
-    try:
-        passes = db.session.get(Passes, id)
-        if passes is not None:
-            return jsonify({'message': 'Data submitted successfully',
-                            'data': pass_schema.dump(passes)})
-        else:
-            return jsonify({'message': f"Object with ID:{id} not founded!"})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@main.route('/submitData/all', methods=['GET'])
-def get_all_passes_data():
-    try:
-        passes = Passes.query.all()
-        if passes is not None:
-            return jsonify(passes_schema.dump(passes))
-        else:
-            return jsonify({'message': f"Data is clear!"})
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@main.route('/submitData/<int:id>', methods=['PATCH'])
-def update_data(id):
-    session = db.session
-    data_get = session.get(Passes, id)
-    pass_schema = PassesSchema()
-    data_entry = pass_schema.dump(data_get)
-    status = data_entry.get('status')
-
-    if not data_entry:
-        return jsonify({'state': 0, 'error': 'Entry not found'}), 404
-
-    if status != 'NEW':
-        return jsonify({'state': 0, 'error': 'Only entries with status "NEW" can be edited'}), 400
-
-    new_data = request.json
-
-    if not new_data:
-        return jsonify({'state': 0, 'erorr': 'No data provided'}), 400
-
-    try:
-        data_to_update = new_data.get('data')
-        level_to_update = data_to_update.get('level')
-        fields_in_new = ["beautyTitle", "connect", "other_titles", "title", 'level']
-        level_in_update = ["autumn", "spring", "summer", "winter"]
-        # fields_to_update = ["beautyTitle", "connect", "other_titles", "title",
-        #                     "level_autumn", "level_spring", "level_summer", "level_winter",]
-        valid_levels = {'z1', 'oneA', 'oneB', 'twoA', 'twoB', 'threeA', 'threeB'}
-        for field in fields_in_new:
-            if field != 'level':
-                setattr(data_get, field, data_to_update[field])
+    @api.doc(description="Принимает данные в старой форме, преобразует в новую и сохраняет", )
+    @api.response(200, 'Success', new_pass_response_model)
+    @api.response(400, 'Bad Request')
+    @api.response(500, 'Server Error')
+    def post(self):
+        try:
+            data = request.get_json()
+            if not data:
+                return {'error': 'No data provided'}, 400
             else:
-                for level in level_in_update:
-                    change_attribute = f'level_{level}'
-                    if new_data['data']['level'][f'{level}'] in valid_levels:
-                        setattr(data_get, change_attribute, level_to_update[level])
-                    else:
-                        setattr(data_get, change_attribute, 'z1')
+                print(f'получена:{data}')
+            data_value = data.get('data')
+            user_id = data_value.get('users_id')
+            coord_id = data_value.get('coords_id')
+            # images = data_value.get('images')
+            beauty_title = data_value.get('beautyTitle')
+            title = data_value.get('title')
+            other_titles = data_value.get('other_titles')
+            connect = data_value.get('connect')
+            level_values = data_value.get('level')
+            level_winter = level_values.get('winter', LevelEnum.z1)
+            level_spring = level_values.get('spring', LevelEnum.z1)
+            level_summer = level_values.get('summer', LevelEnum.z1)
+            level_autumn = level_values.get('autumn', LevelEnum.z1)
 
-    except Exception as e:
-        return jsonify({'state': 0, 'message': e }), 500
+            new_passes = Passes(users_id=user_id,
+                                coords_id=coord_id,
+                                beautyTitle=beauty_title,
+                                title=title,
+                                other_titles=other_titles,
+                                connect=connect,
+                                level_winter=level_winter,
+                                level_spring=level_spring,
+                                level_summer=level_summer,
+                                level_autumn=level_autumn)
+            print(new_passes)
+            # Добавление в сессию и сохранение в базе данных
+            db.session.add(new_passes)
+            print("--1--")
+            # db.session.flush()
+            try:
+                db.session.commit()
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                logging.error(f"Error committing transaction: {e}")
+            print("--2--")
+            response_data = {
+                'message': 'Data submitted successfully',
+                'data_id': new_passes.id
+            }
+            print("---3---")
+            print(new_passes)
+            return jsonify(response_data), 200
 
-    try:
-        db.session.commit()
-        return jsonify({'state': 1, 'message': 'Data updated successfully', 'id': id}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'state': 0, 'message': e }), 500
+        except Exception as e:
+            return {'error': str(e)}, 500
 
 
-@main.route('/submitData/', methods=['GET'])
-def get_user_data_by_email():
-    email = request.args.get('user__email')
-    print(f'New get_user_data_by_email {email}')
-    if not email:
-        return jsonify({'state': 0, 'message': 'Email parameter is missing'}), 400
+@api.route('/submitData/<int:id>')
+class PassResource(Resource):
+    @api.doc(description="Получение данных перевале по ID")
+    @api.response(200, 'Success', passes_model)
+    @api.response(404, 'Pass not found', passes_model)
+    @api.response(500, 'Server Error')
+    def get(self, id):
+        try:
+            if id == 0:
+                passes = Passes.query.all()
+                if passes is not None:
+                    passes_schema = PassesSchema(many=True)
+                    result = passes_schema.dump(passes)
+                    return jsonify(result)
+                else:
+                    return jsonify({'message': f"Data is clear!"})
+            elif id > 0:
+                passes = db.session.get(Passes, id)
+                if passes is not None:
+                    pass_schema = PassesSchema()
+                    result = pass_schema.dump(passes)
+                    return jsonify({'message': 'Data submitted successfully',
+                                    'data': result})
+                else:
+                    return jsonify({'message': f"Object with ID:{id} not founded!"})
 
-    user = Users.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({'state': 0, 'message': 'User not found'}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
-    passes_entries = Passes.query.filter_by(users_id=user.id).all()
-    # passes_schema = PassesSchema(many=True)
-    passes_json = passes_schema.dump(passes_entries)
+    @api.doc(description="Изменение данных об одном перевале по ID c учетом изменений формы записи")
+    @api.response(200, 'Success', passes_model)
+    @api.response(404, 'Entry Data not found', passes_model_old)
+    @api.response(547, 'Status not NEW', passes_model)
+    @api.response(500, 'Server Error')
+    def patch(self, id):
+        session = db.session
+        data_get = session.get(Passes, id)
+        pass_schema = PassesSchema()
+        data_entry = pass_schema.dump(data_get)
+        status = data_entry.get('status')
 
-    return jsonify({'state': 1, 'data': passes_json})
+        if not data_entry:
+            return jsonify({'state': 0, 'error': 'Entry not found'}), 404
+
+        if status != 'NEW':
+            return jsonify({'state': 0, 'error': 'Only entries with status "NEW" can be edited'}), 547
+
+        new_data = request.json
+
+        if not new_data:
+            return jsonify({'state': 0, 'erorr': 'No data provided'}), 404
+
+        try:
+            data_to_update = new_data.get('data')
+            level_to_update = data_to_update.get('level')
+            fields_in_new = ["beautyTitle", "connect", "other_titles", "title", 'level']
+            level_in_update = ["autumn", "spring", "summer", "winter"]
+            # fields_to_update = ["beautyTitle", "connect", "other_titles", "title",
+            #                     "level_autumn", "level_spring", "level_summer", "level_winter",]
+            valid_levels = {'z1', 'oneA', 'oneB', 'twoA', 'twoB', 'threeA', 'threeB'}
+            for field in fields_in_new:
+                if field != 'level':
+                    setattr(data_get, field, data_to_update[field])
+                else:
+                    for level in level_in_update:
+                        change_attribute = f'level_{level}'
+                        if new_data['data']['level'][f'{level}'] in valid_levels:
+                            setattr(data_get, change_attribute, level_to_update[level])
+                        else:
+                            setattr(data_get, change_attribute, 'z1')
+
+        except Exception as e:
+            return jsonify({'state': 0, 'message': str(e)}), 500
+
+        try:
+            db.session.commit()
+            return jsonify({'state': 1, 'message': 'Data updated successfully', 'id': id}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'state': 0, 'message': str(e)}), 500
+
+
+@api.route('/passes/<string:email>')
+class PassesForMail(Resource):
+    @api.doc(description="Получение списка перевалов по USEREMAIL")
+    @api.response(200, 'Success', passes_model)
+    @api.response(400, 'Email not get')
+    @api.response(404, 'User not Found', user_model)
+    def get(self, email):
+        print(f'New get_user_data_by_email {email}')
+        if not email:
+            return jsonify({'state': 0, 'message': 'Email parameter is missing'}), 400
+
+        user = Users.query.filter_by(email=email).first()
+        if not user:
+            return {'state': 0, 'message': 'User not found'}, 404
+
+        passes_entries = Passes.query.filter_by(users_id=user.id).all()
+        passes_schema = PassesSchema(many=True)
+        passes_json = passes_schema.dump(passes_entries)
+
+        return {'state': 1, 'data': passes_json}, 200

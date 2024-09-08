@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, DECIMAL, DateTime
 from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
+
 
 db = SQLAlchemy()
 
@@ -98,26 +98,9 @@ class Images(db.Model):
     @classmethod
     def create_img(cls, pass_id):
         new_img = cls(pass_id=pass_id)
-        print(new_img)
         db.session.add(new_img)
         db.session.commit()
         return {
             'id': new_img.id,
             'pass_id': new_img.pass_id
         }
-
-
-class UserSchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = Users
-        load_instance = True
-
-
-class PassesSchema(SQLAlchemyAutoSchema):
-    users = fields.Nested(UserSchema)
-
-    class Meta:
-        model = Passes
-        include_relationships = False
-        load_instance = True
-

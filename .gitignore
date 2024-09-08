@@ -1,3 +1,5 @@
 Migrations
-Tests
+__pycache__
+**/__init__.py
 .env
+*.log*
