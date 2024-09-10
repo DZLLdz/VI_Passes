@@ -49,7 +49,7 @@ class Users(db.Model):
     role = db.Column(Enum('admin', 'editor', 'tourist', name='user_roles'),
                      nullable=False,
                      default='tourist')
-    atype = db.Column(Enum(ActivitiesTypes))
+    atype = db.Column(Enum(ActivitiesTypes, default='t1'))
     passes = db.relationship('Passes', backref='users', lazy=True)
 
     def __repr__(self):

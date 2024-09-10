@@ -49,4 +49,4 @@ if not app.debug:
     app.logger.addHandler(file_handler)
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

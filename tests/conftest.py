@@ -4,7 +4,7 @@ import pytest
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from main import app, db
-from models import Users, Passes
+from models import Users, Passes, ActivitiesTypes
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
@@ -32,9 +32,12 @@ def test_client():
 
 
 @pytest.fixture(scope='module')
-def init_database(sample_user):
+def init_database(test_client, sample_user):
+    user = sample_user
+    db.session.add(user)
+    db.session.commit()
     sample_pass = Passes(
-        users_id=sample_user,
+        users_id=user.id,
         coords_id=1,
         beautyTitle="Test Title",
         title="Test Title",
@@ -50,9 +53,9 @@ def init_database(sample_user):
     return sample_user, sample_pass
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def sample_user(test_client):
-    user = Users(username='testuser', email='test@yandex.ru', role='tourist')
+    user = Users(username='testuser', email='test@yandex.ru', role='tourist', atype=ActivitiesTypes)
     try:
         db.session.add(user)
         db.session.commit()
@@ -64,10 +67,10 @@ def sample_user(test_client):
     return user
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def sample_pass(test_client, sample_user):
     new_pass = Passes(
-        users_id=sample_user.id,
+        users_id=sample_user,
         coords_id=1,
         beautyTitle="Beauty Title 2",
         title="Test Title 2",

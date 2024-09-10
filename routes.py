@@ -147,21 +147,21 @@ class PassResource(Resource):
                 if passes is not None:
                     passes_schema = PassesSchema(many=True)
                     result = passes_schema.dump(passes)
-                    return jsonify(result)
+                    return result
                 else:
-                    return jsonify({'message': f"Data is clear!"})
+                    return {'message': f"Data is clear!"}
             elif id > 0:
                 passes = db.session.get(Passes, id)
                 if passes is not None:
                     pass_schema = PassesSchema()
                     result = pass_schema.dump(passes)
-                    return jsonify({'message': 'Data submitted successfully',
-                                    'data': result})
+                    return {'message': 'Data submitted successfully',
+                            'data': result}
                 else:
-                    return jsonify({'message': f"Object with ID:{id} not founded!"})
+                    return {'message': f"Object with ID:{id} not founded!"}
 
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500
 
     @api.doc(description="Изменение данных об одном перевале по ID c учетом изменений формы записи")
     @api.response(200, 'Success', passes_model)
@@ -176,15 +176,15 @@ class PassResource(Resource):
         status = data_entry.get('status')
 
         if not data_entry:
-            return jsonify({'state': 0, 'error': 'Entry not found'}), 404
+            return {'state': 0, 'error': 'Entry not found'}, 404
 
         if status != 'NEW':
-            return jsonify({'state': 0, 'error': 'Only entries with status "NEW" can be edited'}), 547
+            return {'state': 0, 'error': 'Only entries with status "NEW" can be edited'}, 547
 
         new_data = request.json
 
         if not new_data:
-            return jsonify({'state': 0, 'erorr': 'No data provided'}), 404
+            return {'state': 0, 'erorr': 'No data provided'}, 404
 
         try:
             data_to_update = new_data.get('data')
@@ -206,14 +206,14 @@ class PassResource(Resource):
                             setattr(data_get, change_attribute, 'z1')
 
         except Exception as e:
-            return jsonify({'state': 0, 'message': str(e)}), 500
+            return {'state': 0, 'message': str(e)}, 500
 
         try:
             db.session.commit()
-            return jsonify({'state': 1, 'message': 'Data updated successfully', 'id': id}), 200
+            return {'state': 1, 'message': 'Data updated successfully', 'id': id}, 200
         except Exception as e:
             db.session.rollback()
-            return jsonify({'state': 0, 'message': str(e)}), 500
+            return {'state': 0, 'message': str(e)}, 500
 
 
 @api.route('/passes/<string:email>')
